@@ -1,4 +1,3 @@
-
 \documentclass[10pt]{article}
 
 \usepackage{epsfig}
@@ -34,7 +33,7 @@
 \Large
 {\bf Project 1 Technical Specification}\\
 {\bf \noindent CS621: Network Programming -- Spring 2019}\\
-\noindent \emph{Updated: Feb 5th, 2019}\\
+\noindent \emph{Updated: Feb 13th, 2019}\\
 
 \normalsize
 \setcounter{secnumdepth}{0}
@@ -52,18 +51,39 @@ Crucial to success in this project will be a deep and detailed reading and under
 
 \section{Components}
 \subsubsection{(1) Compression Link}
-Your compression link application must be built using ns-3. It will be responsible for compression and decompression of incoming and outgoing packets. You will use the \href{https://en.wikipedia.org/wiki/Lempel\%E2\%80\%93Ziv\%E2\%80\%93Stac}{Lempel-Ziv-Stac algorithm} for compression and decompression, for which you may find and use a library.  Your compression link should follow the requirements in the \href{http://www.rfcreader.com/#rfc1974}{RFC 1974: PPP Stac LZS Compression Protocol}.
+Your compression link application must be built using ns-3. It will be responsible for compression and decompression of incoming and outgoing packets. You will use the \href{https://en.wikipedia.org/wiki/Lempel\%E2\%80\%93Ziv\%E2\%80\%93Stac}{Lempel-Ziv-Stac algorithm} for compression and decompression, for which you may find and use a library.  Your compression link should follow some requirements in the \href{http://www.rfcreader.com/#rfc1974}{RFC 1974: PPP Stac LZS Compression Protocol}.
+
+Specifically, you should implement functionality that takes a PPP packet, and first checks the protocol number in the header. You should also have a configuration file that specifies packet types to compress. If you determine that the checked packet type matches one in the configuration file, you should pre-process then compress it. For the purposes of this project, your configuration file will only have one protocol entered, IP, protocol number \texttt{0x0021}.
+
+Pre-processing should first take the matched packet then replace the original protocol number with the LZS protocol number, \texttt{0x4021}. It should then take the original protocol number and append it to the original data, and compress that whole bitstring and replace it with the original data section in the original packet, as illustrated in Figure \ref{packets}. Decompressor, at the other side of the compression link, should then reverse all the pre-processing steps performed at the compressor, to retrieve the original incoming packet ((1) in Figure \ref{packets}), before pushing it to the next interface.
+
+You should not worry about implementing Compression Control Protocol and its corresponding control packets, as you may assume the two routers have already reached an Opened state and LZS has been negotiated as the primary compression algorithm. Similarly, you should also not implement anything from the negotiation phase, and not worry about using the exact compression data format, specified in X3.241-1994.
+
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{\detokenize{packet_construction.png}}
+  \caption{The specified method to implement for assembling compressed packets, as specified in \href{http://www.rfcreader.com/\#rfc1974}{RFC 1974}.}
+  \label{packets}
+\end{figure}
 
 You may only need to modify \href{https://www.nsnam.org/doxygen/classns3_1_1_point_to_point_net_device.html}{\texttt{PointToPointNetDevice}} to enable compression/decompression on point-to-point links. A good starting point to get familiar with, in addition to \texttt{PointToPointNetDevice} is the \href{https://www.nsnam.org/docs/release/3.8/doxygen/group___point_to_point_model.html}{ns-3 point-to-point model overview}.
 
 A good starting point for building ns-3 applications might be this ns-3 wiki article, \href{https://www.nsnam.org/wiki/HOWTO_make_and_use_a_new_application}{How To Make and Use A New Application}.
 
+
+
+
+
+
 \subsubsection{(2) Compression Detection Application}
-You will implement the network compression detection \emph{only in the cooperative environment} as described \href{https://lasr.cs.ucla.edu/vahab/resources/compression_detection.pdf}{here} (Section IV). In summary, your network application is a client/server application where the sender sends two sets of 6000 UDP packets back-to-back (called packet train), and the receiver records the arrival time between the first and last packet in the train. The first packet train consists of all packets of size 1100 bytes in payload, filled with all 0's, while the second packet train contains random sequence of bits. You can generate random sequence of bits using \texttt{/dev/random}.
+You will implement the network compression detection \emph{only in the cooperative environment} as described \href{https://lasr.cs.ucla.edu/vahab/resources/compression_detection.pdf}{here} (Section IV). In summary, your network application is a client/server application where the sender sends two sets of 6000 UDP packets back-to-back (called packet train), and the receiver records the arrival time between the first and last packet in the train. The first packet train consists of all packets of size 1100 bytes in payload, filled with all 0's, while the second packet train contains random sequence of bits. You can generate random sequence of bits using \texttt{/dev/random}. If the difference in arrival time between the first and last packets of the two trains ($\Delta t_H - \Delta t_L$) is more than a fixed threshold $\tau = 100~ms$, the application reports \texttt{Compression detected!}, whereas when the time difference is less than $\tau$ there was probably no compression link on the path and the application should display \texttt{No compression was detected.}
+
+Your application is required to take in at least one command-line argument, Compression Link Capacity, which specifies the maximum bandwidth across the link between the two routers.
 
 \subsubsection{(3) Simulation Verification and Validation}
 
 Create a 4-node topology in ns-3 as illustrated in Figure \ref{link}. Nodes $S$ and $R$ are the end-hosts running the network application. Nodes $R1$ and $R2$ are the intermediate routers where the link between them is compression-enabled. Your simulations should also be built using ns-3.  You should include four logically separate simulations, each doing one of the following:
+
 \begin{itemize}
     \item Transmit low entropy data over a network topology without a compression link.
     \item Transmit high entropy data over a network topology without a compression link.
@@ -71,13 +91,17 @@ Create a 4-node topology in ns-3 as illustrated in Figure \ref{link}. Nodes $S$ 
     \item Transmit high entropy data over a network topology with a compression link.
 \end{itemize}
 
+You will then vary the middle link ($R1R2$) capacity parameter from 1,2,3,...,10 Mbps, reporting each $\Delta t_H - \Delta t_L$. The link capacity of the two outer (non compression) links on your four node topology should be set persistently to 8 Mbps. 
+
 Make sure you are careful to control for confounding variables across your four simulations, as you will ultimately be comparing time between these four simulation types so as to try and detect the compression link.
 
 \begin{figure}
-  \includegraphics[width=\linewidth]{link_diagram.png}
+  \includegraphics[width=\linewidth]{\detokenize{link_diagram.png}}
   \caption{A 4-node topology with a compression link.}
   \label{link}
 \end{figure}
+
+
 
 \section{Submission Requirements and Deadlines}
 You final submissions will be graded on design, implementation, code quality, coding style, and documentation quality. You will submit two documents: (1) Technical usage manual, and (2) final report. You should follow the \href{https://www.nsnam.org/develop/contributing-code/coding-style/}{ns-3 coding style}. While you are not required to submit a design document, you are strongly encouraged to maintain one in order to deliver your project successfully.
