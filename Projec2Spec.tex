@@ -1,0 +1,155 @@
+\documentclass[10pt]{article}
+
+\usepackage{epsfig}
+\usepackage{verbatim}
+\usepackage{underscore}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    urlcolor=blue,
+    linkcolor=black,
+}
+
+\parskip=.080in
+\setlength{\evensidemargin}{-0.2in}
+\setlength{\oddsidemargin}{-0.2in}
+\setlength{\parindent}{0.0in}
+\setlength{\textwidth}{6.9in}
+\setlength{\topmargin}{-0.5in}
+\setlength{\textheight}{10.0in}
+\setlength{\headheight}{0in}
+\setlength{\headsep}{0in}
+\setlength{\topsep}{0in}
+\setlength{\itemsep}{0in}
+\renewcommand{\baselinestretch}{1.1}
+\pagestyle{empty}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\Large
+{\bf Project 2 Technical Specification}\\
+{\bf \noindent CS621: Network Programming -- Spring 2019}\\
+\noindent \emph{Updated: March 4th, 2019}\\
+
+\normalsize
+\setcounter{secnumdepth}{0}
+\section{Project Outcomes}
+\begin{enumerate}
+    \item Build a base class for Differentiated Services in ns-3.
+
+    \item Implement Strict Priority Queueing (SPQ) and Deficit Round Robin (DRR), using the base class.
+
+    \item Validate and verify your SPQ and DRR implementations.
+
+\end{enumerate}
+
+\section{Overview}
+The ultimate purpose of this project is to learn about and implement a selection of differentiated services. Because there is a large amount of shared structure amongst differentiated services, it is a practical exercise to start by creating a base class. The API for the base class is laid out for you. Your assignment is to implement it.
+
+After completion of the base class, you will implement two differentiated services: SPQ and DRR. Refer to \href{http://cs621.cs.usfca.edu/v/lectures/Lecture10.pdf}{Lecture 10} and the corresponding reading assignments for a detailed discussion of these services. To conclude the project, you will validate and verify your implemented services. This will require creating and running various ns-3 applications and simulations.
+
+\section{Components}
+\subsubsection{(1) DiffServ: A Base Class to Simulate Differentiated Services}
+
+DiffServ class provides basic functionalities required to simulate differentiated services:
+\begin{itemize}
+    \item Classification -  The classify function utilizes filter aspect to sort the traffic packets into appropriate traffic queues.
+    \item Scheduling - The schedule function carries out designed Quality-of-Service (QoS) algorithm to schedule which traffic queue to be served at the time.
+\end{itemize}
+
+Two separate functions need to be implemented per QoS algorithm design of the developer’s choice. For network queues, DoEnqueue() and DoDequeue() functions can be overwritten to meet implementation requirements for various QoS algorithms.
+
+Your base class will be a subclass of \href{https://www.nsnam.org/doxygen/classns3_1_1_queue.html}{\texttt{ns-3::Queue}}, as such you should start this project out by learning in detail the \texttt{ns-3::Queue} API reference and the closely related \href{https://www.nsnam.org/docs/release/3.24/doxygen/classns3_1_1_drop_tail_queue.html}{\texttt{ns-3::DropTailQueue}} API reference. 
+
+Your base class should follow the requirements laid out in the UML diagram in Figure \ref{base}. 
+
+
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{\detokenize{baseclass.png}}
+  \caption{Base Class Design}
+  \label{base}
+\end{figure}
+
+
+Here is a short description detailing the role of some of classes in the figure and their members.
+%%%%
+\begin{itemize}
+    \item DiffServ
+    \begin{itemize}
+        \item m_mode - The QueueMode specifies whether service is in byte mode or packet mode.
+        \item q_class - The vector (array) of TrafficClass pointers.
+setMode()/getMode() - the accessor and modifier for private variable m_mode.
+        \item Schedule() - Returns a packet to transmit.
+        \item Classify(p) - Takes a packet and returns an integer. 
+    \end{itemize}
+    \item TrafficClass - Defines the characteristics of a queue.
+    \begin{itemize}
+        \item bytes - the count of bytes in the queue.
+        \item packets - the count of packets in the queue.
+        \item maxPackets - the maximum number of packets allowed in the queue.
+        \item maxBytes - the maximum number of bytes allowed in the queue.
+        \item weight - applicable if the QoS mechanism uses weight.
+        \item priority_level - applicable if the QoS mechanism uses priority level.
+        \item filters - A collection of conditions as Filters, any of which should match in order to trigger match.
+    \end{itemize}
+    \item Filter - A collection of conditions as FilterElements, all of which should match in order to trigger match. Refer to Figure \ref{filters} for an example.
+    \begin{itemize}
+        \item elements - the array of pointers to FilterElement.
+    \end{itemize}
+    \item FilterElement - a base class for a primitive condition to match on. You should write one subclass for every seven (light purple) boxes in the design diagram. Refer to Figure \ref{filters} for an example.
+\end{itemize}
+
+
+\begin{figure}
+  \includegraphics[width=\linewidth]{\detokenize{filters.png}}
+  \caption{An example of how users of your base class will be able to match any boolean condition given the right set of Filters and FilterElements.}
+  \label{filters}
+\end{figure}
+
+
+\subsubsection{(2) Implementing SPQ and DRR with DiffServ}
+
+
+You will make two separate implementations, one implementing Strict Priority Queueing, and the other implementing DRR, both using your implemented DiffServ class.
+
+Your SPQ implementation should take exactly one command line input, the name of a config file. In that file you should specify the number of queues and a priority level for each queue.
+
+Your DRR implementation should also take only that one input for the config file. It specifies the number of queues and the corresponding quantum value for each queue.
+
+\emph{Extra Credit:} Implement a parser for your config file for SPQ, so that the config file is a sequence of CLI commands for Cisco Catalyst 3750 switch.
+
+
+\subsubsection{(3) Simulation Verification and Validation}
+
+As the last part of your project, you are to create ns-3 applications and simulations to demonstrate the correctness of your implementations above. For both SPQ and DRR, create a 3-node topology (set data-rates to 4-1 Mps), where the middle node is a QoS-enabled router and two outer nodes are end-hosts running simple client/server bulk data transfer applications.
+
+To validate SPQ, you should create two client server applications A and B. Configure the router on the path so that, A traffic is prioritized over B. Application A should begin sometime after application B starts. In this case, your router has two queues.
+
+For your DRR verification, you should initialize three queues with quanta ratio 3:2:1. Then, start three client-server bulk data transfer applications, all starting at the same time.
+
+For both simulations your demonstration should include a plot of throughput vs. time for all applications. An example of throughput vs. time plot is provided in Figure \ref{simval}. 
+
+\begin{figure}
+\begin{center}
+  \includegraphics[scale=0.65]{\detokenize{simval.png}}
+  \caption{In this scenario, the sender starts sending low priority traffic at time 0s. At time 12s, the sender sends both high priority traffic. Once high priority traffic begins, low priority traffic bandwidth allocation is severely reduced. Once high priority traffic ends, then low priority traffic regains full available bandwidth allocation.}
+  \label{simval}
+\end{center}
+\end{figure}
+
+
+\section{Submission Requirements and Deadlines}
+
+You final submissions will be graded on design, implementation, code quality, coding style, and documentation quality. You will submit two documents: (1) Technical usage manual, and (2) final report. You should follow the 
+\href{https://www.nsnam.org/develop/contributing-code/coding-style/}{ns-3 coding style}. While you are not required to submit a design document, you are strongly encouraged to maintain one in order to deliver your project successfully.
+
+There will be two checkpoints for this project, one on \textbf{March 28th} (in-class), and the other some time on \textbf{the week of 4/15}. All of your code and technical manual is due on \textbf{May 1st}. Commits made after the due date will not be reviewed.
+
+Keep in mind that at the end of the semester, you will present your project on \textbf{May 9th} in class, and submit a final report that is due \textbf{May 15th, 11:59PM}.
+
+\end{document}
